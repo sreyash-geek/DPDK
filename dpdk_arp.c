@@ -3,10 +3,23 @@
  *
  * Unidirectional ARP requester using DPDK.
  * Sends ARP requests to a kernel‑managed server and learns its MAC.
- * Usage: ./dpdk_arp_client <port_id> <my_ip> <peer_ip>
- * Example: ./dpdk_arp_client 0 192.168.0.1 192.168.0.2
+ *
+ * Prerequisites:
+ * 1. Bind the NIC to a DPDK-compatible driver (e.g., vfio-pci or uio):
+ *    sudo dpdk-devbind --bind=vfio-pci <PCI_DEVICE_ID>
+ *
+ * 2. Mount hugepages:
+ *    sudo mount -t hugetlbfs nodev /mnt/huge
+ *
+ * Build and Run:
+ *   gcc -O3 -march=native dpdk_arp_client.c -o dpdk_arp_client \
+ *       $(pkg-config --cflags --libs libdpdk)
+ *
+ *   sudo ./dpdk_arp_client -l 0 -n 4 -- <port_id> <my_ip> <peer_ip>
+ *
+ * Example:
+ *   sudo ./dpdk_arp_client -l 0 -n 4 -- 0 192.168.0.1 192.168.0.2
  */
-
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -139,3 +152,30 @@ int main(int argc, char **argv) {
     rte_eth_dev_close(port_id);
     return 0;
 }
+
+/*
+Add the following `meson.build` file into your `examples/` directory to build this program with Meson + Ninja:
+
+# examples/meson.build
+
+project('dpdk_arp_client', 'c',
+  default_options : [
+    'c_std=c11',
+    'optimization=3'
+  ]
+)
+
+dpdk_inc = dependency('libdpdk', method: 'pkg-config')
+
+executable('dpdk_arp_client',
+  'dpdk_arp_client.c',
+  dependencies: [dpdk_inc],
+  install: true,
+  cpp_args: ['-march=native'],
+)
+
+# Usage from root of your project:
+#   meson setup builddir --prefix=/usr/local
+#   ninja -C builddir
+#   ninja -C builddir install
+*/
